@@ -1,19 +1,33 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 初始化 Supabase 客户端
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
+
 app.use(cors());
 app.use(express.json());
 
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  // 测试数据库连接
+  const { data, error } = await supabase
+    .from('settings')
+    .select('*')
+    .limit(1);
+  
   res.json({ 
     status: 'ok', 
     message: '服务正常运行',
+    database: error ? 'disconnected' : 'connected',
     timestamp: new Date().toISOString()
   });
 });
