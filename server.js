@@ -22,23 +22,52 @@ app.get('/', (req, res) => {
   res.json({ message: 'Chat Backend API' });
 });
 
-// 聊天接口
 app.post('/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, apiConfig } = req.body;
     
     if (!message) {
       return res.status(400).json({ error: '消息不能为空' });
     }
 
-    // 这里先返回固定回复，之后再接入真正的 AI
-    const reply = `收到你的消息：${message}`;
+    if (!apiConfig || !apiConfig.baseUrl || !apiConfig.apiKey) {
+      return res.status(400).json({ error: 'API 配置不完整' });
+    }
+
+    // 调用 AI API
+    const aiResponse = await fetch(`${apiConfig.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiConfig.apiKey}`
+      },
+      body: JSON.stringify({
+        model: apiConfig.model || 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'user',
+            content: message
+          }
+        ],
+        stream: false
+      })
+    });
+
+    if (!aiResponse.ok) {
+      const error = await aiResponse.text();
+      console.error('AI API 错误:', error);
+      return res.status(500).json({ error: 'AI 服务调用失败' });
+    }
+
+    const aiData = await aiResponse.json();
+    const reply = aiData.choices[0].message.content;
     
     res.json({ 
       reply,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    console.error('服务器错误:', error);
     res.status(500).json({ error: '服务器错误' });
   }
 });
